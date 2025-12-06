@@ -1,22 +1,8 @@
-// src/index.ts
-import express, { Request, Response } from "express";
+import app from "./app";
+import { config } from "./config";
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const port = config.port;
 
-// Middleware to parse JSON
-app.use(express.json());
-
-// Simple route
-app.get("/", (req: Request, res: Response) => {
-  res.json({ message: "Hello from TypeScript + Express 👋" });
-});
-
-// Example API route
-app.get("/health", (req: Request, res: Response) => {
-  res.json({ status: "ok" });
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
