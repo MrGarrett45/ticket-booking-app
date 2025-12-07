@@ -222,12 +222,20 @@ function EventDetail({ eventId, onBack }: { eventId: string; onBack: () => void 
         </p>
       </div>
 
-      <TicketTiers eventId={eventId} tiers={tiers} />
+      <TicketTiers eventId={eventId} tiers={tiers} onTiersChange={setTiers} />
     </section>
   );
 }
 
-function TicketTiers({ eventId, tiers }: { eventId: string; tiers: TicketTier[] }) {
+function TicketTiers({
+  eventId,
+  tiers,
+  onTiersChange,
+}: {
+  eventId: string;
+  tiers: TicketTier[];
+  onTiersChange: (next: TicketTier[]) => void;
+}) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [clientRef, setClientRef] = useState("");
@@ -267,6 +275,17 @@ function TicketTiers({ eventId, tiers }: { eventId: string; tiers: TicketTier[] 
       });
       setBooking(result);
       setMessage("Booking confirmed!");
+      // Reflect updated inventory locally only when a new booking is created.
+      // If the API returns an existing booking for the same clientReference, do not double-decrement.
+      if (!booking || booking.id !== result.id) {
+        const decrements = new Map(items.map((i) => [i.ticketTierId, i.quantity]));
+        const updated = tiers.map((tier) => {
+          const dec = decrements.get(tier.id) ?? 0;
+          return { ...tier, remainingQuantity: Math.max(0, tier.remainingQuantity - dec) };
+        });
+        onTiersChange(updated);
+      }
+      setQuantities({});
     } catch (err: any) {
       setMessage(err.message || "Could not complete booking.");
     } finally {

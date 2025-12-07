@@ -86,7 +86,6 @@ Base path: `/api`
   - Use prepared statements and pooling to keep p95 under 500ms at peak.
 
 ## Multi-Region Approach (HA)
-- **Pick a single writer for each set of tickets**: Choose one region to own writes for an event’s inventory. Other regions can still read from replicas, but all booking writes for that event go to its “home” region.
 - **Route users smartly**: Use global DNS/load balancing to send users to the nearest healthy region. For booking writes, forward to the home region for that event; for reads, serve locally from replicas/caches.
-- **Partition by event**: Assign events to regions (or shards). Store that mapping so API nodes know where to send booking requests; static content stays at the edge/CDN.
+- **Partition by event (optional)**: Assign events to regions (or shards). Store that mapping so API nodes know where to send booking requests; static content stays at the edge/CDN.
 - **Failover plan**: If a region fails, promote a replica in another region for that shard. Use health checks to flip traffic, and rely on idempotency keys to keep retries from creating duplicate bookings.
