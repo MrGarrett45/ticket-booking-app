@@ -38,12 +38,12 @@ npm run dev
 
 ### 6) Build
 - Backend: `cd backend && npm run build`
-- Frontend: `cd frontend && npm run build` (if Windows blocks esbuild with EPERM, rerun from an unrestricted shell)
+- Frontend: `cd frontend && npm run build`
 
 ### 7) Tests (backend)
 ```
 cd backend
-npm test -- --runInBand
+npm run test
 ```
 
 ## API (backend)
