@@ -1,11 +1,7 @@
 import { PoolClient } from "pg";
 import { query, withTransaction } from "../db";
 import { Booking, BookingItem } from "../models";
-import {
-  ConflictError,
-  NotFoundError,
-  ValidationError,
-} from "../utils/errors";
+import { ConflictError, NotFoundError, ValidationError } from "../utils/errors";
 
 interface CreateBookingItemInput {
   ticketTierId: string;
@@ -18,18 +14,23 @@ export interface CreateBookingInput {
   items: CreateBookingItemInput[];
 }
 
-export async function createBooking(input: CreateBookingInput): Promise<Booking> {
+export async function createBooking(
+  input: CreateBookingInput
+): Promise<Booking> {
   validateBookingInput(input);
 
   return withTransaction(async (client) => {
     await ensureEventExists(client, input.eventId);
 
+    //normalizedRef = idempotency key
     const normalizedRef = input.clientReference?.trim() || null;
     if (normalizedRef) {
       const existing = await findBookingByReference(client, normalizedRef);
       if (existing) {
         if (existing.event_id !== input.eventId) {
-          throw new ValidationError("clientReference already used for another event");
+          throw new ValidationError(
+            "clientReference already used for another event"
+          );
         }
         return loadBooking(client, existing.id);
       }
@@ -44,7 +45,7 @@ export async function createBooking(input: CreateBookingInput): Promise<Booking>
       WHERE id = ANY($1::uuid[]) AND event_id = $2
       FOR UPDATE
       `,
-      [tierIds, input.eventId],
+      [tierIds, input.eventId]
     );
 
     if (tiersResult.rowCount !== tierIds.length) {
@@ -66,7 +67,9 @@ export async function createBooking(input: CreateBookingInput): Promise<Booking>
         throw new ValidationError("Ticket tier does not belong to the event");
       }
       if (tier.remaining_quantity < item.quantity) {
-        throw new ConflictError(`Not enough tickets remaining for tier ${tier.tier}`);
+        throw new ConflictError(
+          `Not enough tickets remaining for tier ${tier.tier}`
+        );
       }
       totalAmountCents += Number(tier.price_cents) * item.quantity;
     }
@@ -77,7 +80,7 @@ export async function createBooking(input: CreateBookingInput): Promise<Booking>
       VALUES ($1, $2, 'CONFIRMED', $3)
       RETURNING *
       `,
-      [input.eventId, normalizedRef, totalAmountCents],
+      [input.eventId, normalizedRef, totalAmountCents]
     );
     const bookingRow = bookingResult.rows[0];
 
@@ -88,7 +91,7 @@ export async function createBooking(input: CreateBookingInput): Promise<Booking>
         INSERT INTO booking_items (booking_id, ticket_tier_id, quantity, price_cents)
         VALUES ($1, $2, $3, $4)
         `,
-        [bookingRow.id, tier.id, item.quantity, tier.price_cents],
+        [bookingRow.id, tier.id, item.quantity, tier.price_cents]
       );
 
       await client.query(
@@ -97,7 +100,7 @@ export async function createBooking(input: CreateBookingInput): Promise<Booking>
         SET remaining_quantity = remaining_quantity - $1
         WHERE id = $2
         `,
-        [item.quantity, tier.id],
+        [item.quantity, tier.id]
       );
     }
 
@@ -110,28 +113,36 @@ export async function getBooking(bookingId: string): Promise<Booking> {
 }
 
 async function ensureEventExists(client: PoolClient, eventId: string) {
-  const result = await client.query(`SELECT 1 FROM events WHERE id = $1`, [eventId]);
+  const result = await client.query(`SELECT 1 FROM events WHERE id = $1`, [
+    eventId,
+  ]);
   if (result.rowCount === 0) {
     throw new NotFoundError("Event not found");
   }
 }
 
-async function findBookingByReference(client: PoolClient, clientReference: string) {
+async function findBookingByReference(
+  client: PoolClient,
+  clientReference: string
+) {
   const result = await client.query(
     `SELECT * FROM bookings WHERE client_reference = $1`,
-    [clientReference],
+    [clientReference]
   );
   return result.rows[0] ?? null;
 }
 
-async function loadBooking(client: PoolClient | null, bookingId: string): Promise<Booking> {
+async function loadBooking(
+  client: PoolClient | null,
+  bookingId: string
+): Promise<Booking> {
   const executor = client ?? {
     query: (text: string, params?: any[]) => query(text, params),
   };
 
   const bookingResult = await executor.query(
     `SELECT * FROM bookings WHERE id = $1`,
-    [bookingId],
+    [bookingId]
   );
 
   if (bookingResult.rowCount === 0) {
@@ -145,7 +156,7 @@ async function loadBooking(client: PoolClient | null, bookingId: string): Promis
     JOIN ticket_tiers tt ON tt.id = bi.ticket_tier_id
     WHERE bi.booking_id = $1
     `,
-    [bookingId],
+    [bookingId]
   );
 
   return mapBooking(bookingResult.rows[0], itemsResult.rows);

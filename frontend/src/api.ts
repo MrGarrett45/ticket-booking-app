@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { BookingRequest, Event, TicketTier, Booking } from "./types";
 
 const API_BASE =
